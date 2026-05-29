@@ -4,7 +4,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -19,6 +18,8 @@ const accidentSchema = new mongoose.Schema({
 const Accident = mongoose.model('Accident', accidentSchema);
 
 let isConnected = false;
+let lastSaveTime = 0;
+const DEBOUNCE_MS = 10000; // ignore duplicate hits within 10 seconds
 
 async function connectDB() {
     if (isConnected) return;
@@ -26,39 +27,38 @@ async function connectDB() {
     isConnected = true;
 }
 
-// POST via URL params — works with GET also
-// SIM800L can use this easily
-// Example: /update?lat=27.7172&lon=85.3240
 app.get('/update', async (req, res) => {
     try {
         await connectDB();
-        const lat = req.query.lat || '27.7172';
-        const lon = req.query.lon || '85.3240';
+        const now = Date.now();
+
+        // Debounce — ignore if same data came in within 10s
+        if (now - lastSaveTime < DEBOUNCE_MS) {
+            console.log('Debounced duplicate request');
+            return res.status(200).send('OK');
+        }
+        lastSaveTime = now;
+
+        const lat    = req.query.lat    || '27.7172';
+        const lon    = req.query.lon    || '85.3240';
         const status = req.query.status || 'Accident Detected';
 
         console.log('Received GET:', lat, lon, status);
 
         await Accident.findOneAndUpdate(
             {},
-            {
-                latitude:  lat,
-                longitude: lon,
-                status:    status,
-                timestamp: new Date()
-            },
-            { new: true, upsert: true }
+            { latitude: lat, longitude: lon, status, timestamp: new Date() },
+            { returnDocument: 'after', upsert: true }
         );
 
         console.log('Saved!');
         res.status(200).send('OK');
-
     } catch (err) {
         console.error(err);
         res.status(500).send('Error');
     }
 });
 
-// POST accident
 app.post('/accident', async (req, res) => {
     try {
         await connectDB();
@@ -73,19 +73,15 @@ app.post('/accident', async (req, res) => {
                 status:    status || 'Accident Detected',
                 timestamp: new Date()
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
 
-        console.log('Saved!');
         res.status(200).send('OK');
-
     } catch (err) {
-        console.error(err);
         res.status(500).send('Error');
     }
 });
 
-// GET latest
 app.get('/latest', async (req, res) => {
     try {
         await connectDB();
@@ -97,7 +93,6 @@ app.get('/latest', async (req, res) => {
     }
 });
 
-// GET all
 app.get('/accidents', async (req, res) => {
     try {
         await connectDB();
@@ -108,7 +103,6 @@ app.get('/accidents', async (req, res) => {
     }
 });
 
-// Dashboard
 app.get('/', async (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(
@@ -139,8 +133,7 @@ app.get('/', async (req, res) => {
         'async function load(){' +
         'try{' +
         'var r=await fetch("/latest");' +
-        'if(r.status===404){' +
-        'document.getElementById("tb").innerHTML="<tr><td colspan=5>No data</td></tr>";return;}' +
+        'if(r.status===404){document.getElementById("tb").innerHTML="<tr><td colspan=5>No data</td></tr>";return;}' +
         'var a=await r.json();' +
         'document.getElementById("upd").textContent="Last Updated: "+new Date(a.timestamp).toLocaleString();' +
         'document.getElementById("tb").innerHTML="<tr>"' +
@@ -152,10 +145,8 @@ app.get('/', async (req, res) => {
         '+"</tr>";}' +
         'catch(e){document.getElementById("upd").textContent="Error: "+e;}' +
         '}' +
-        'load();' +
-        'setInterval(load,5000);' +
-        '</script>' +
-        '</body></html>'
+        'load();setInterval(load,5000);' +
+        '</script></body></html>'
     );
 });
 
