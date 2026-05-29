@@ -9,6 +9,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Force trust proxy for Vercel
+app.set('trust proxy', 1);
+
 const accidentSchema = new mongoose.Schema({
     latitude:  { type: String },
     longitude: { type: String },
@@ -26,7 +29,7 @@ async function connectDB() {
     isConnected = true;
 }
 
-// POST — update existing or create new
+// POST accident
 app.post('/accident', async (req, res) => {
     try {
         await connectDB();
@@ -41,14 +44,10 @@ app.post('/accident', async (req, res) => {
                 status:    status || 'Accident Detected',
                 timestamp: new Date()
             },
-            {
-                new: true,
-                upsert: true,
-                sort: { timestamp: -1 }
-            }
+            { new: true, upsert: true }
         );
 
-        console.log('Saved to MongoDB!');
+        console.log('Saved!');
         res.status(200).send('OK');
 
     } catch (err) {
@@ -57,7 +56,7 @@ app.post('/accident', async (req, res) => {
     }
 });
 
-// GET — latest accident
+// GET latest
 app.get('/latest', async (req, res) => {
     try {
         await connectDB();
@@ -69,7 +68,7 @@ app.get('/latest', async (req, res) => {
     }
 });
 
-// GET — all accidents
+// GET all
 app.get('/accidents', async (req, res) => {
     try {
         await connectDB();
@@ -80,7 +79,7 @@ app.get('/accidents', async (req, res) => {
     }
 });
 
-// GET — dashboard (no template literals)
+// Dashboard
 app.get('/', async (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(
@@ -109,6 +108,7 @@ app.get('/', async (req, res) => {
         '</table>' +
         '<script>' +
         'async function load(){' +
+        'try{' +
         'var r=await fetch("/latest");' +
         'if(r.status===404){' +
         'document.getElementById("tb").innerHTML="<tr><td colspan=5>No data</td></tr>";return;}' +
@@ -121,6 +121,8 @@ app.get('/', async (req, res) => {
         '+"<td>"+new Date(a.timestamp).toLocaleString()+"</td>"' +
         '+"<td><a href=\'https://maps.google.com/?q="+a.latitude+","+a.longitude+"\' target=\'_blank\'>View Map</a></td>"' +
         '+"</tr>";}' +
+        'catch(e){document.getElementById("upd").textContent="Error: "+e;}' +
+        '}' +
         'load();' +
         'setInterval(load,5000);' +
         '</script>' +
