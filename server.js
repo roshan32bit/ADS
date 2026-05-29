@@ -9,9 +9,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Force trust proxy for Vercel
-app.set('trust proxy', 1);
-
 const accidentSchema = new mongoose.Schema({
     latitude:  { type: String },
     longitude: { type: String },
@@ -29,12 +26,44 @@ async function connectDB() {
     isConnected = true;
 }
 
+// POST via URL params — works with GET also
+// SIM800L can use this easily
+// Example: /update?lat=27.7172&lon=85.3240
+app.get('/update', async (req, res) => {
+    try {
+        await connectDB();
+        const lat = req.query.lat || '27.7172';
+        const lon = req.query.lon || '85.3240';
+        const status = req.query.status || 'Accident Detected';
+
+        console.log('Received GET:', lat, lon, status);
+
+        await Accident.findOneAndUpdate(
+            {},
+            {
+                latitude:  lat,
+                longitude: lon,
+                status:    status,
+                timestamp: new Date()
+            },
+            { new: true, upsert: true }
+        );
+
+        console.log('Saved!');
+        res.status(200).send('OK');
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error');
+    }
+});
+
 // POST accident
 app.post('/accident', async (req, res) => {
     try {
         await connectDB();
         const { lat, lon, status } = req.body;
-        console.log('Received:', lat, lon, status);
+        console.log('Received POST:', lat, lon, status);
 
         await Accident.findOneAndUpdate(
             {},
