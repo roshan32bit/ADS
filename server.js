@@ -4,23 +4,26 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+const TS_READ_KEY = 'PDKWYWD6ZO5E1MXJ';
+const TS_CHANNEL  = '3397361';
+
 app.get('/latest', async (req, res) => {
     try {
         const response = await fetch(
-            'http://dweetr.io/get/latest/dweet/for/ARS-ads'
+            'https://api.thingspeak.com/channels/' +
+            TS_CHANNEL +
+            '/feeds/last.json?api_key=' +
+            TS_READ_KEY
         );
         const data = await response.json();
-        const dweet = data.with[0];
-        const content = dweet.content;
-
         res.json({
-            latitude: content.lat || 'N/A',
-            longitude: content.lon || 'N/A',
-            status: content.status || 'N/A',
-            timestamp: dweet.created
+            latitude:  data.field1 || 'N/A',
+            longitude: data.field2 || 'N/A',
+            status:    data.field3 || 'N/A',
+            timestamp: data.created_at
         });
     } catch (err) {
-        res.status(500).json({ message: 'Error fetching data' });
+        res.status(500).json({ message: 'Error' });
     }
 });
 
@@ -52,62 +55,47 @@ app.get('/', async (req, res) => {
         '.refresh-btn{background:#d32f2f;color:white;border:none;' +
         'padding:10px 20px;border-radius:8px;cursor:pointer;' +
         'font-size:14px;width:100%;margin-bottom:10px;}' +
-        '.update-time{text-align:center;color:#999;' +
-        'font-size:12px;margin-bottom:15px;}' +
-        '.dot{height:10px;width:10px;border-radius:50%;' +
-        'display:inline-block;margin-right:5px;}' +
+        '.update-time{text-align:center;color:#999;font-size:12px;margin-bottom:15px;}' +
+        '.dot{height:10px;width:10px;border-radius:50%;display:inline-block;margin-right:5px;}' +
         '.dot-green{background:#4caf50;}' +
         '.dot-red{background:#d32f2f;}' +
         '</style></head><body>' +
-
         '<div class="header">' +
-        '<h1>🚨 ADS System</h1>' +
-        '<p>Accident Detection System — Live Dashboard</p>' +
+        '<h1>ADS System</h1>' +
+        '<p>Accident Detection System Live Dashboard</p>' +
         '</div>' +
-
         '<div class="container">' +
         '<div class="update-time" id="upd">Loading...</div>' +
-        '<button class="refresh-btn" onclick="load()">🔄 Refresh Now</button>' +
-
+        '<button class="refresh-btn" onclick="load()">Refresh Now</button>' +
         '<div class="card">' +
-        '<h2>📍 Last Accident Location</h2>' +
+        '<h2>Last Accident Location</h2>' +
         '<div class="info-grid" id="grid">' +
-        '<div style="text-align:center;color:#999;padding:20px;' +
-        'grid-column:span 2">Waiting for data...</div>' +
+        '<div style="text-align:center;color:#999;padding:20px;grid-column:span 2">Waiting...</div>' +
         '</div></div>' +
-
         '<div class="card" id="mapcard" style="display:none">' +
-        '<h2>🗺️ Location Map</h2>' +
-        '<a class="map-btn" id="maplink" href="#" target="_blank">' +
-        '📍 Open in Google Maps</a>' +
+        '<h2>Location Map</h2>' +
+        '<a class="map-btn" id="maplink" href="#" target="_blank">Open in Google Maps</a>' +
         '</div>' +
-
         '<div class="card">' +
-        '<h2>ℹ️ System Info</h2>' +
+        '<h2>System Info</h2>' +
         '<p style="font-size:13px;color:#666;line-height:2">' +
-        '• Device: 8051 AT89C51<br>' +
-        '• GSM: SIM800L (NTC)<br>' +
-        '• Sensor: GY-87 MPU6050<br>' +
-        '• GPS: NEO-6M (coming soon)<br>' +
-        '• Storage: dweetr.io → ARS-ads' +
+        'Device: AT89S52<br>' +
+        'GSM: SIM800L NTC<br>' +
+        'Sensor: GY-87 MPU6050<br>' +
+        'GPS: NEO-6M<br>' +
+        'Data: ThingSpeak' +
         '</p></div>' +
-
         '</div>' +
-
         '<script>' +
         'async function load(){' +
         'document.getElementById("upd").textContent="Refreshing...";' +
         'try{' +
         'var r=await fetch("/latest");' +
-        'if(!r.ok){' +
-        'document.getElementById("upd").innerHTML=' +
-        '"<span class=\'dot dot-red\'></span>No data from device yet";' +
-        'document.getElementById("grid").innerHTML=' +
-        '"<div style=\'text-align:center;color:#999;padding:20px;grid-column:span 2\'>' +
-        'No accident data yet</div>";' +
-        'document.getElementById("mapcard").style.display="none";' +
-        'return;}' +
         'var a=await r.json();' +
+        'if(!a.latitude||a.latitude==="N/A"){' +
+        'document.getElementById("upd").innerHTML=' +
+        '"<span class=\'dot dot-red\'></span>No data yet";' +
+        'return;}' +
         'var t=new Date(a.timestamp).toLocaleString();' +
         'document.getElementById("upd").innerHTML=' +
         '"<span class=\'dot dot-green\'></span>Last updated: "+t;' +
@@ -120,9 +108,7 @@ app.get('/', async (req, res) => {
         '+"<div class=\'value\'>"+a.longitude+"</div></div>"' +
         '+"<div class=\'info-box\'>"' +
         '+"<div class=\'label\'>STATUS</div>"' +
-        '+"<div class=\'value\'>"' +
-        '+"<span class=\'status-badge\'>"+a.status+"</span>"' +
-        '+"</div></div>"' +
+        '+"<div class=\'value\'><span class=\'status-badge\'>"+a.status+"</span></div></div>"' +
         '+"<div class=\'info-box\'>"' +
         '+"<div class=\'label\'>TIME</div>"' +
         '+"<div class=\'value\' style=\'font-size:13px\'>"+t+"</div></div>";' +
