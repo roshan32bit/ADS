@@ -1,105 +1,26 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const accidentSchema = new mongoose.Schema({
-    latitude:  { type: String },
-    longitude: { type: String },
-    status:    { type: String, default: 'Accident Detected' },
-    timestamp: { type: Date, default: Date.now }
-});
-
-const Accident = mongoose.model('Accident', accidentSchema);
-
-let isConnected = false;
-let lastSaveTime = 0;
-const DEBOUNCE_MS = 10000; // ignore duplicate hits within 10 seconds
-
-async function connectDB() {
-    if (isConnected) return;
-    await mongoose.connect(process.env.MONGODB_URI);
-    isConnected = true;
-}
-
-app.get('/update', async (req, res) => {
-    try {
-        await connectDB();
-        const now = Date.now();
-
-        // Debounce — ignore if same data came in within 10s
-        if (now - lastSaveTime < DEBOUNCE_MS) {
-            console.log('Debounced duplicate request');
-            return res.status(200).send('OK');
-        }
-        lastSaveTime = now;
-
-        const lat    = req.query.lat    || '27.7172';
-        const lon    = req.query.lon    || '85.3240';
-        const status = req.query.status || 'Accident Detected';
-
-        console.log('Received GET:', lat, lon, status);
-
-        await Accident.findOneAndUpdate(
-            {},
-            { latitude: lat, longitude: lon, status, timestamp: new Date() },
-            { returnDocument: 'after', upsert: true }
-        );
-
-        console.log('Saved!');
-        res.status(200).send('OK');
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error');
-    }
-});
-
-app.post('/accident', async (req, res) => {
-    try {
-        await connectDB();
-        const { lat, lon, status } = req.body;
-        console.log('Received POST:', lat, lon, status);
-
-        await Accident.findOneAndUpdate(
-            {},
-            {
-                latitude:  lat    || '27.7172',
-                longitude: lon    || '85.3240',
-                status:    status || 'Accident Detected',
-                timestamp: new Date()
-            },
-            { returnDocument: 'after', upsert: true }
-        );
-
-        res.status(200).send('OK');
-    } catch (err) {
-        res.status(500).send('Error');
-    }
-});
 
 app.get('/latest', async (req, res) => {
     try {
-        await connectDB();
-        const record = await Accident.findOne().sort({ timestamp: -1 });
-        if (!record) return res.status(404).json({ message: 'No data' });
-        res.json(record);
-    } catch (err) {
-        res.status(500).send('Error');
-    }
-});
+        const response = await fetch(
+            'http://dweetr.io/get/latest/dweet/for/ARS-ads'
+        );
+        const data = await response.json();
+        const dweet = data.with[0];
+        const content = dweet.content;
 
-app.get('/accidents', async (req, res) => {
-    try {
-        await connectDB();
-        const records = await Accident.find().sort({ timestamp: -1 });
-        res.json(records);
+        res.json({
+            latitude: content.lat || 'N/A',
+            longitude: content.lon || 'N/A',
+            status: content.status || 'N/A',
+            timestamp: dweet.created
+        });
     } catch (err) {
-        res.status(500).send('Error');
+        res.status(500).json({ message: 'Error fetching data' });
     }
 });
 
@@ -107,46 +28,115 @@ app.get('/', async (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(
         '<!DOCTYPE html>' +
-        '<html><head><title>ARS Dashboard</title>' +
+        '<html><head><title>ADS Dashboard</title>' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
         '<style>' +
-        'body{font-family:Arial;padding:20px;background:#f0f0f0;}' +
-        'h1{color:#d32f2f;}' +
-        'table{width:100%;border-collapse:collapse;background:white;}' +
-        'th{background:#d32f2f;color:white;padding:10px;}' +
-        'td{padding:10px;border-bottom:1px solid #ddd;text-align:center;}' +
-        'tr:hover{background:#ffebee;}' +
-        'a{color:blue;}' +
-        '.btn{background:#d32f2f;color:white;padding:10px 20px;' +
-        'border:none;cursor:pointer;border-radius:5px;margin-bottom:20px;}' +
-        '.status{color:green;font-weight:bold;}' +
+        '*{box-sizing:border-box;margin:0;padding:0;}' +
+        'body{font-family:Arial;background:#f0f0f0;}' +
+        '.header{background:#d32f2f;color:white;padding:20px;text-align:center;}' +
+        '.header h1{font-size:24px;}' +
+        '.header p{font-size:13px;opacity:0.8;}' +
+        '.container{padding:20px;}' +
+        '.card{background:white;border-radius:10px;padding:20px;' +
+        'margin-bottom:20px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}' +
+        '.card h2{color:#d32f2f;font-size:16px;margin-bottom:15px;}' +
+        '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}' +
+        '.info-box{background:#f9f9f9;border-radius:8px;padding:12px;text-align:center;}' +
+        '.info-box .label{font-size:11px;color:#999;margin-bottom:5px;}' +
+        '.info-box .value{font-size:18px;font-weight:bold;color:#333;}' +
+        '.status-badge{display:inline-block;background:#d32f2f;' +
+        'color:white;padding:5px 15px;border-radius:20px;font-size:13px;}' +
+        '.map-btn{display:block;background:#1976d2;color:white;' +
+        'text-align:center;padding:12px;border-radius:8px;' +
+        'text-decoration:none;margin-top:10px;font-size:14px;}' +
+        '.refresh-btn{background:#d32f2f;color:white;border:none;' +
+        'padding:10px 20px;border-radius:8px;cursor:pointer;' +
+        'font-size:14px;width:100%;margin-bottom:10px;}' +
+        '.update-time{text-align:center;color:#999;' +
+        'font-size:12px;margin-bottom:15px;}' +
+        '.dot{height:10px;width:10px;border-radius:50%;' +
+        'display:inline-block;margin-right:5px;}' +
+        '.dot-green{background:#4caf50;}' +
+        '.dot-red{background:#d32f2f;}' +
         '</style></head><body>' +
-        '<h1>Accident Detection System</h1>' +
-        '<p class="status" id="upd">Loading...</p>' +
-        '<button class="btn" onclick="load()">Refresh</button>' +
-        '<table><thead><tr>' +
-        '<th>Latitude</th><th>Longitude</th>' +
-        '<th>Status</th><th>Last Updated</th><th>Map</th>' +
-        '</tr></thead>' +
-        '<tbody id="tb"><tr><td colspan="5">Loading...</td></tr></tbody>' +
-        '</table>' +
+
+        '<div class="header">' +
+        '<h1>🚨 ADS System</h1>' +
+        '<p>Accident Detection System — Live Dashboard</p>' +
+        '</div>' +
+
+        '<div class="container">' +
+        '<div class="update-time" id="upd">Loading...</div>' +
+        '<button class="refresh-btn" onclick="load()">🔄 Refresh Now</button>' +
+
+        '<div class="card">' +
+        '<h2>📍 Last Accident Location</h2>' +
+        '<div class="info-grid" id="grid">' +
+        '<div style="text-align:center;color:#999;padding:20px;' +
+        'grid-column:span 2">Waiting for data...</div>' +
+        '</div></div>' +
+
+        '<div class="card" id="mapcard" style="display:none">' +
+        '<h2>🗺️ Location Map</h2>' +
+        '<a class="map-btn" id="maplink" href="#" target="_blank">' +
+        '📍 Open in Google Maps</a>' +
+        '</div>' +
+
+        '<div class="card">' +
+        '<h2>ℹ️ System Info</h2>' +
+        '<p style="font-size:13px;color:#666;line-height:2">' +
+        '• Device: 8051 AT89C51<br>' +
+        '• GSM: SIM800L (NTC)<br>' +
+        '• Sensor: GY-87 MPU6050<br>' +
+        '• GPS: NEO-6M (coming soon)<br>' +
+        '• Storage: dweetr.io → ARS-ads' +
+        '</p></div>' +
+
+        '</div>' +
+
         '<script>' +
         'async function load(){' +
+        'document.getElementById("upd").textContent="Refreshing...";' +
         'try{' +
         'var r=await fetch("/latest");' +
-        'if(r.status===404){document.getElementById("tb").innerHTML="<tr><td colspan=5>No data</td></tr>";return;}' +
+        'if(!r.ok){' +
+        'document.getElementById("upd").innerHTML=' +
+        '"<span class=\'dot dot-red\'></span>No data from device yet";' +
+        'document.getElementById("grid").innerHTML=' +
+        '"<div style=\'text-align:center;color:#999;padding:20px;grid-column:span 2\'>' +
+        'No accident data yet</div>";' +
+        'document.getElementById("mapcard").style.display="none";' +
+        'return;}' +
         'var a=await r.json();' +
-        'document.getElementById("upd").textContent="Last Updated: "+new Date(a.timestamp).toLocaleString();' +
-        'document.getElementById("tb").innerHTML="<tr>"' +
-        '+"<td>"+a.latitude+"</td>"' +
-        '+"<td>"+a.longitude+"</td>"' +
-        '+"<td>"+a.status+"</td>"' +
-        '+"<td>"+new Date(a.timestamp).toLocaleString()+"</td>"' +
-        '+"<td><a href=\'https://maps.google.com/?q="+a.latitude+","+a.longitude+"\' target=\'_blank\'>View Map</a></td>"' +
-        '+"</tr>";}' +
-        'catch(e){document.getElementById("upd").textContent="Error: "+e;}' +
-        '}' +
-        'load();setInterval(load,5000);' +
-        '</script></body></html>'
+        'var t=new Date(a.timestamp).toLocaleString();' +
+        'document.getElementById("upd").innerHTML=' +
+        '"<span class=\'dot dot-green\'></span>Last updated: "+t;' +
+        'document.getElementById("grid").innerHTML=' +
+        '"<div class=\'info-box\'>"' +
+        '+"<div class=\'label\'>LATITUDE</div>"' +
+        '+"<div class=\'value\'>"+a.latitude+"</div></div>"' +
+        '+"<div class=\'info-box\'>"' +
+        '+"<div class=\'label\'>LONGITUDE</div>"' +
+        '+"<div class=\'value\'>"+a.longitude+"</div></div>"' +
+        '+"<div class=\'info-box\'>"' +
+        '+"<div class=\'label\'>STATUS</div>"' +
+        '+"<div class=\'value\'>"' +
+        '+"<span class=\'status-badge\'>"+a.status+"</span>"' +
+        '+"</div></div>"' +
+        '+"<div class=\'info-box\'>"' +
+        '+"<div class=\'label\'>TIME</div>"' +
+        '+"<div class=\'value\' style=\'font-size:13px\'>"+t+"</div></div>";' +
+        'var m="https://maps.google.com/?q="+a.latitude+","+a.longitude;' +
+        'document.getElementById("maplink").href=m;' +
+        'document.getElementById("mapcard").style.display="block";' +
+        '}catch(e){' +
+        'document.getElementById("upd").innerHTML=' +
+        '"<span class=\'dot dot-red\'></span>Error: "+e;' +
+        '}}' +
+        'load();' +
+        'setInterval(load,5000);' +
+        '</script>' +
+        '</body></html>'
     );
 });
 
