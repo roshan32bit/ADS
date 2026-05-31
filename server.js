@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors());
@@ -7,6 +8,137 @@ app.use(cors());
 const TS_READ_KEY = 'PDKWYWD6ZO5E1MXJ';
 const TS_CHANNEL  = '3397361';
 
+// =====================
+// EMAIL CONFIG
+// =====================
+const SENDER_EMAIL    = 'rthokar190@gmail.com';      // ← your Gmail
+const SENDER_PASSWORD = 'uecf ecuu qbox kkwe';       // ← Gmail App Password
+const DASHBOARD_URL   = 'https://ads-sigma-murex.vercel.app/'; // ← your Vercel URL
+
+const RECEIVER_EMAILS = [
+    'themailofaayush@gmail.com',   // ← add email 1
+    'shishirgyawali222@gmail.com',   // ← add email 2
+       // ← add email 3
+];
+
+// Track last notified entry to avoid duplicate emails
+let lastNotifiedTimestamp = null;
+
+// =====================
+// NODEMAILER SETUP
+// =====================
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: SENDER_EMAIL,
+        pass: SENDER_PASSWORD,
+    }
+});
+
+// =====================
+// SEND EMAIL FUNCTION
+// =====================
+async function sendCrashEmail(latitude, longitude, timestamp) {
+    const mapsUrl = 'https://maps.google.com/?q=' + latitude + ',' + longitude;
+    const time    = new Date(timestamp).toLocaleString();
+
+    const htmlBody = `
+    <div style="font-family:Arial;max-width:600px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;">
+      <div style="background:#d32f2f;padding:25px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:24px;">🚨 ADS SYSTEM ALERT</h1>
+        <p style="color:white;opacity:0.9;margin:5px 0 0;">Accident Detection System</p>
+      </div>
+      <div style="padding:25px;">
+        <h2 style="color:#d32f2f;">Crash Has Been Detected!</h2>
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Our system has detected a crash. Immediate attention may be required.
+        </p>
+        <div style="background:#f9f9f9;border-radius:8px;padding:15px;margin:20px 0;">
+          <table style="width:100%;font-size:14px;">
+            <tr>
+              <td style="color:#999;padding:6px 0;">Latitude</td>
+              <td style="color:#333;font-weight:bold;">${latitude}</td>
+            </tr>
+            <tr>
+              <td style="color:#999;padding:6px 0;">Longitude</td>
+              <td style="color:#333;font-weight:bold;">${longitude}</td>
+            </tr>
+            <tr>
+              <td style="color:#999;padding:6px 0;">Time</td>
+              <td style="color:#333;font-weight:bold;">${time}</td>
+            </tr>
+            <tr>
+              <td style="color:#999;padding:6px 0;">Status</td>
+              <td><span style="background:#d32f2f;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">Accident</span></td>
+            </tr>
+          </table>
+        </div>
+        <a href="${mapsUrl}"
+           style="display:block;background:#1976d2;color:white;text-align:center;
+                  padding:12px;border-radius:8px;text-decoration:none;
+                  font-size:14px;margin-bottom:10px;">
+          📍 View Location on Google Maps
+        </a>
+        <a href="${DASHBOARD_URL}"
+           style="display:block;background:#d32f2f;color:white;text-align:center;
+                  padding:12px;border-radius:8px;text-decoration:none;
+                  font-size:14px;">
+          📊 Open Live Dashboard
+        </a>
+        <p style="color:#999;font-size:12px;text-align:center;margin-top:20px;">
+          This is an automated alert from ADS System.<br>
+          Please check the dashboard for more information.
+        </p>
+      </div>
+    </div>`;
+
+    const mailOptions = {
+        from:    '"ADS System 🚨" <' + SENDER_EMAIL + '>',
+        to:      RECEIVER_EMAILS.join(','),
+        subject: '🚨 ADS SYSTEM — Crash Detected!',
+        html:    htmlBody
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Crash email sent to all receivers');
+    } catch (err) {
+        console.error('Email send error:', err);
+    }
+}
+
+// =====================
+// POLL THINGSPEAK & NOTIFY
+// =====================
+async function checkAndNotify() {
+    try {
+        const response = await fetch(
+            'https://api.thingspeak.com/channels/' +
+            TS_CHANNEL +
+            '/feeds/last.json?api_key=' +
+            TS_READ_KEY
+        );
+        const data = await response.json();
+
+        if (
+            data.field1 &&
+            data.field3 &&
+            data.created_at !== lastNotifiedTimestamp
+        ) {
+            lastNotifiedTimestamp = data.created_at;
+            await sendCrashEmail(data.field1, data.field2, data.created_at);
+        }
+    } catch (err) {
+        console.error('ThingSpeak poll error:', err);
+    }
+}
+
+// Poll every 10 seconds
+setInterval(checkAndNotify, 10000);
+
+// =====================
+// API ROUTES
+// =====================
 app.get('/latest', async (req, res) => {
     try {
         const response = await fetch(
@@ -109,19 +241,16 @@ padding:2px 10px;border-radius:12px;font-size:11px;}
 <div class="container">
   <div class="update-time" id="upd">Loading...</div>
   <button class="refresh-btn" onclick="load()">Refresh Now</button>
-
   <div class="card">
     <h2>Last Accident Location</h2>
     <div class="info-grid" id="grid">
       <div style="text-align:center;color:#999;padding:20px;grid-column:span 2">Waiting for data...</div>
     </div>
   </div>
-
   <div class="card" id="mapcard" style="display:none">
     <h2>Location Map</h2>
     <a class="map-btn" id="maplink" href="#" target="_blank">Open in Google Maps</a>
   </div>
-
   <div class="card">
     <h2>Accident History (Last 5)</h2>
     <div class="table-wrapper">
@@ -142,95 +271,67 @@ padding:2px 10px;border-radius:12px;font-size:11px;}
       </table>
     </div>
   </div>
-
   <div class="card">
     <h2>System Info</h2>
     <p style="font-size:13px;color:#666;line-height:2">
       Device: AT89S52<br>
       GSM: SIM800L NTC<br>
       Sensor: GY-87 MPU6050<br>
-      GPS: NEO-6M<br>
       Data: ThingSpeak
     </p>
   </div>
 </div>
-
 <script>
-function fmt(val) {
-  return (val && val !== 'null') ? val : '<span class="null-val">—</span>';
-}
-function fmtTime(ts) {
-  if (!ts) return '<span class="null-val">—</span>';
-  return new Date(ts).toLocaleString();
-}
-
-async function load() {
-  document.getElementById('upd').textContent = 'Refreshing...';
-  try {
-    // Latest
-    var r = await fetch('/latest');
-    var a = await r.json();
-
-    if (!a.latitude) {
-      document.getElementById('upd').innerHTML =
-        "<span class='dot dot-red'></span>No data yet";
-      document.getElementById('grid').innerHTML =
-        "<div style='text-align:center;color:#999;padding:20px;grid-column:span 2'>Waiting for first accident...</div>";
-    } else {
-      var t = fmtTime(a.timestamp);
-      document.getElementById('upd').innerHTML =
-        "<span class='dot dot-green'></span>Last updated: " + new Date(a.timestamp).toLocaleString();
-      document.getElementById('grid').innerHTML =
-        "<div class='info-box'><div class='label'>LATITUDE</div>" +
-        "<div class='value'>" + fmt(a.latitude) + "</div></div>" +
-        "<div class='info-box'><div class='label'>LONGITUDE</div>" +
-        "<div class='value'>" + fmt(a.longitude) + "</div></div>" +
-        "<div class='info-box'><div class='label'>STATUS</div>" +
-        "<div class='value'><span class='status-badge'>" + fmt(a.status) + "</span></div></div>" +
-        "<div class='info-box'><div class='label'>TIME</div>" +
-        "<div class='value' style='font-size:13px'>" + t + "</div></div>";
-      if (a.latitude && a.longitude) {
-        var m = 'https://maps.google.com/?q=' + a.latitude + ',' + a.longitude;
-        document.getElementById('maplink').href = m;
-        document.getElementById('mapcard').style.display = 'block';
+function fmt(val){return(val&&val!=='null')?val:'<span class="null-val">—</span>';}
+function fmtTime(ts){if(!ts)return '<span class="null-val">—</span>';return new Date(ts).toLocaleString();}
+async function load(){
+  document.getElementById('upd').textContent='Refreshing...';
+  try{
+    var r=await fetch('/latest');
+    var a=await r.json();
+    if(!a.latitude){
+      document.getElementById('upd').innerHTML="<span class='dot dot-red'></span>No data yet";
+      document.getElementById('grid').innerHTML="<div style='text-align:center;color:#999;padding:20px;grid-column:span 2'>Waiting for first accident...</div>";
+    }else{
+      var t=fmtTime(a.timestamp);
+      document.getElementById('upd').innerHTML="<span class='dot dot-green'></span>Last updated: "+new Date(a.timestamp).toLocaleString();
+      document.getElementById('grid').innerHTML=
+        "<div class='info-box'><div class='label'>LATITUDE</div><div class='value'>"+fmt(a.latitude)+"</div></div>"+
+        "<div class='info-box'><div class='label'>LONGITUDE</div><div class='value'>"+fmt(a.longitude)+"</div></div>"+
+        "<div class='info-box'><div class='label'>STATUS</div><div class='value'><span class='status-badge'>"+fmt(a.status)+"</span></div></div>"+
+        "<div class='info-box'><div class='label'>TIME</div><div class='value' style='font-size:13px'>"+t+"</div></div>";
+      if(a.latitude&&a.longitude){
+        document.getElementById('maplink').href='https://maps.google.com/?q='+a.latitude+','+a.longitude;
+        document.getElementById('mapcard').style.display='block';
       }
     }
-
-    // History
-    var hr = await fetch('/history');
-    var hist = await hr.json();
-    if (!hist.length) {
-      document.getElementById('histbody').innerHTML =
-        '<tr><td colspan="6" class="no-data">No history yet</td></tr>';
+    var hr=await fetch('/history');
+    var hist=await hr.json();
+    if(!hist.length){
+      document.getElementById('histbody').innerHTML='<tr><td colspan="6" class="no-data">No history yet</td></tr>';
       return;
     }
-    var rows = '';
-    for (var i = 0; i < hist.length; i++) {
-      var h = hist[i];
-      var hasCoords = h.latitude && h.longitude;
-      var mapUrl = hasCoords
-        ? 'https://maps.google.com/?q=' + h.latitude + ',' + h.longitude
-        : null;
-      rows +=
-        '<tr>' +
-        '<td>' + h.no + '</td>' +
-        '<td>' + fmt(h.latitude) + '</td>' +
-        '<td>' + fmt(h.longitude) + '</td>' +
-        '<td>' + (h.status ? "<span class='tbl-badge'>" + h.status + "</span>" : "<span class='null-val'>—</span>") + '</td>' +
-        '<td>' + fmtTime(h.timestamp) + '</td>' +
-        '<td>' + (hasCoords ? "<a class='tbl-map' href='" + mapUrl + "' target='_blank'>&#x1F4CD; View</a>" : "<span class='null-val'>—</span>") + '</td>' +
+    var rows='';
+    for(var i=0;i<hist.length;i++){
+      var h=hist[i];
+      var hasCoords=h.latitude&&h.longitude;
+      var mapUrl=hasCoords?'https://maps.google.com/?q='+h.latitude+','+h.longitude:null;
+      rows+='<tr>'+
+        '<td>'+h.no+'</td>'+
+        '<td>'+fmt(h.latitude)+'</td>'+
+        '<td>'+fmt(h.longitude)+'</td>'+
+        '<td>'+(h.status?"<span class='tbl-badge'>"+h.status+"</span>":"<span class='null-val'>—</span>")+'</td>'+
+        '<td>'+fmtTime(h.timestamp)+'</td>'+
+        '<td>'+(hasCoords?"<a class='tbl-map' href='"+mapUrl+"' target='_blank'>📍 View</a>":"<span class='null-val'>—</span>")+'</td>'+
         '</tr>';
     }
-    document.getElementById('histbody').innerHTML = rows;
-
-  } catch(e) {
-    document.getElementById('upd').innerHTML =
-      "<span class='dot dot-red'></span>Error: " + e;
+    document.getElementById('histbody').innerHTML=rows;
+  }catch(e){
+    document.getElementById('upd').innerHTML="<span class='dot dot-red'></span>Error: "+e;
   }
 }
-
 load();
-setInterval(load, 5000);
+setInterval(load,5000);
 </script>
 </body>
 </html>`);
