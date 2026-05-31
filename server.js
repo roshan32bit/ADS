@@ -18,7 +18,7 @@ const DASHBOARD_URL   = 'https://ads-sigma-murex.vercel.app/'; // ← your Verce
 const RECEIVER_EMAILS = [
     'themailofaayush@gmail.com',   // ← add email 1
     'shishirgyawali222@gmail.com',   // ← add email 2
-       // ← add email 3
+    'roshan31bit2024@kcc.edu.np'// ← add email 3
 ];
 
 // Track last notified entry to avoid duplicate emails
