@@ -120,14 +120,22 @@ async function checkAndNotify() {
         );
         const data = await response.json();
 
-        if (
-            data.field1 &&
-            data.field3 &&
-            data.created_at !== lastNotifiedTimestamp
-        ) {
-            lastNotifiedTimestamp = data.created_at;
-            await sendCrashEmail(data.field1, data.field2, data.created_at);
-        }
+        if (!data.field1 || !data.field3) return;
+
+        // Only send email if data was created within last 2 minutes
+        const dataTime = new Date(data.created_at).getTime();
+        const now = Date.now();
+        const ageInSeconds = (now - dataTime) / 1000;
+
+        // If data is older than 2 minutes → skip (already old data)
+        if (ageInSeconds > 120) return;
+
+        // Avoid duplicate emails for same entry
+        if (data.created_at === lastNotifiedTimestamp) return;
+
+        lastNotifiedTimestamp = data.created_at;
+        await sendCrashEmail(data.field1, data.field2, data.created_at);
+
     } catch (err) {
         console.error('ThingSpeak poll error:', err);
     }
