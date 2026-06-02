@@ -42,17 +42,17 @@ async function sendVibrationEmail(x_axis, y_axis, z_axis, timestamp) {
 
     const htmlBody = `
     <div style="font-family:Arial;max-width:600px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;">
-      <div style="background:#ff9800;padding:25px;text-align:center;">
+      <div style="background:#d32f2f;padding:25px;text-align:center;">
         <h1 style="color:white;margin:0;font-size:24px;">📳 VDS SYSTEM ALERT</h1>
         <p style="color:white;opacity:0.9;margin:5px 0 0;">Vibration Detection System</p>
       </div>
       <div style="padding:25px;">
-        <h2 style="color:#ff9800;">⚠️ Significant Vibration Detected!</h2>
+        <h2 style="color:#d32f2f;">⚠️ Significant Vibration Detected!</h2>
         <p style="color:#555;font-size:15px;line-height:1.6;">
           Our system has detected significant vibration that may indicate abnormal activity.
         </p>
         <div style="background:#f9f9f9;border-radius:8px;padding:15px;margin:20px 0;">
-          <h3 style="color:#ff9800;margin:0 0 15px 0;font-size:16px;">📊 Vibration Data:</h3>
+          <h3 style="color:#d32f2f;margin:0 0 15px 0;font-size:16px;">📊 Vibration Data:</h3>
           <table style="width:100%;font-size:14px;">
             <tr>
               <td style="color:#999;padding:6px 0;">X-Axis (Acceleration)</td>
@@ -75,12 +75,12 @@ async function sendVibrationEmail(x_axis, y_axis, z_axis, timestamp) {
             </tr>
             <tr>
               <td style="color:#999;padding:6px 0;">Status</td>
-              <td colspan="2"><span style="background:#ff9800;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">📳 VIBRATION</span></td>
+              <td colspan="2"><span style="background:#d32f2f;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">📳 VIBRATION</span></td>
             </tr>
           </table>
         </div>
         <a href="${DASHBOARD_URL}"
-           style="display:block;background:#ff9800;color:white;text-align:center;
+           style="display:block;background:#d32f2f;color:white;text-align:center;
                   padding:12px;border-radius:8px;text-decoration:none;
                   font-size:14px;">
           📊 Open VDS Live Dashboard
@@ -211,37 +211,38 @@ app.get('/', async (req, res) => {
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial;background:#f0f0f0;}
-.header{background:#ff9800;color:white;padding:20px;text-align:center;}
+.header{background:#d32f2f;color:white;padding:20px;text-align:center;}
 .header h1{font-size:24px;}
 .header p{font-size:13px;opacity:0.8;}
 .container{padding:20px;}
 .card{background:white;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-.card h2{color:#ff9800;font-size:16px;margin-bottom:15px;}
+.card h2{color:#d32f2f;font-size:16px;margin-bottom:15px;}
 .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
 .info-box{background:#f9f9f9;border-radius:8px;padding:12px;text-align:center;}
 .info-box .label{font-size:11px;color:#999;margin-bottom:5px;}
 .info-box .value{font-size:18px;font-weight:bold;color:#333;}
-.status-badge{display:inline-block;background:#ff9800;color:white;padding:5px 15px;border-radius:20px;font-size:13px;}
-.refresh-btn{background:#ff9800;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;width:100%;margin-bottom:10px;}
+.status-badge{display:inline-block;background:#d32f2f;color:white;padding:5px 15px;border-radius:20px;font-size:13px;}
+.refresh-btn{background:#d32f2f;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;width:100%;margin-bottom:10px;}
+.refresh-btn:hover{background:#b71c1c;}
 .update-time{text-align:center;color:#999;font-size:12px;margin-bottom:15px;}
 .dot{height:10px;width:10px;border-radius:50%;display:inline-block;margin-right:5px;}
 .dot-green{background:#4caf50;}
-.dot-orange{background:#ff9800;}
+.dot-red{background:#d32f2f;}
 .table-wrapper{overflow-x:auto;margin-top:5px;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-thead tr{background:#ff9800;color:white;}
+thead tr{background:#d32f2f;color:white;}
 thead th{padding:10px 12px;text-align:left;white-space:nowrap;font-weight:600;}
 tbody tr{border-bottom:1px solid #f0f0f0;transition:background 0.2s;}
-tbody tr:hover{background:#fff3e0;}
+tbody tr:hover{background:#ffebee;}
 tbody tr:nth-child(even){background:#fafafa;}
-tbody tr:nth-child(even):hover{background:#fff3e0;}
+tbody tr:nth-child(even):hover{background:#ffebee;}
 tbody td{padding:10px 12px;color:#444;white-space:nowrap;}
-tbody td:first-child{font-weight:bold;color:#ff9800;text-align:center;width:40px;}
-.tbl-badge{display:inline-block;background:#ff9800;color:white;padding:2px 10px;border-radius:12px;font-size:11px;}
+tbody td:first-child{font-weight:bold;color:#d32f2f;text-align:center;width:40px;}
+.tbl-badge{display:inline-block;background:#d32f2f;color:white;padding:2px 10px;border-radius:12px;font-size:11px;}
 .no-data{text-align:center;color:#999;padding:20px;font-size:13px;}
 .null-val{color:#ccc;font-style:italic;font-size:12px;}
-.warning{background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:12px;text-align:center;margin-top:15px;}
-.warning p{color:#e65100;font-size:12px;}
+.warning{background:#ffebee;border:1px solid #ffcdd2;border-radius:8px;padding:12px;text-align:center;margin-top:15px;}
+.warning p{color:#c62828;font-size:12px;font-weight:bold;}
 </style>
 </head>
 <body>
@@ -301,7 +302,7 @@ function getVibrationLevel(z){
   let zVal = parseFloat(z);
   if(isNaN(zVal)) return '';
   if(Math.abs(zVal) > 20000) return '🔴 EXTREME VIBRATION';
-  if(Math.abs(zVal) > 15000) return '🟠 HIGH VIBRATION';
+  if(Math.abs(zVal) > 15000) return '🔴 HIGH VIBRATION';
   if(Math.abs(zVal) > 10000) return '🟡 MODERATE VIBRATION';
   return '🟢 LOW VIBRATION';
 }
@@ -311,7 +312,7 @@ async function load(){
     let r=await fetch('/latest');
     let a=await r.json();
     if(!a.status || a.status!=='VIBRATION'){
-      document.getElementById('upd').innerHTML="<span class='dot dot-orange'></span>No recent vibrations";
+      document.getElementById('upd').innerHTML="<span class='dot dot-red'></span>No recent vibrations";
       document.getElementById('grid').innerHTML="<div style='text-align:center;color:#999;padding:20px;grid-column:span 3'>No vibration data yet. System monitoring...</div>";
       document.getElementById('warningMsg').style.display='none';
     }else{
@@ -343,7 +344,7 @@ async function load(){
     }
     document.getElementById('histbody').innerHTML=rows;
   }catch(e){
-    document.getElementById('upd').innerHTML="<span class='dot dot-orange'></span>Error: "+e;
+    document.getElementById('upd').innerHTML="<span class='dot dot-red'></span>Error: "+e;
   }
 }
 load();
